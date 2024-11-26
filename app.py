@@ -1,37 +1,39 @@
 import streamlit as st
-from flask import Flask, send_file
-from threading import Thread
 import time
+from github import Github
 
-# File path for the raw text file
-RAW_TEXT_FILE = "state.txt"
+# Load the GitHub token from secrets
+GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+REPO_NAME = "Isaiahensley/pico-gate-opener"  # Replace with your repo name
 
-# Flask app for serving raw text
-flask_app = Flask(__name__)
+def update_state_file(content):
+    g = Github(GITHUB_TOKEN)
+    repo = g.get_repo(REPO_NAME)
+    contents = repo.get_contents("state.txt", ref="main")  # Adjust branch if necessary
 
-@flask_app.route("/rawtext")
-def rawtext():
-    """Serve the raw text file."""
-    return send_file(RAW_TEXT_FILE, mimetype="text/plain")
+    # Update the file
+    repo.update_file(contents.path, "Update state.txt via Streamlit app", content, contents.sha, branch="main")
 
-def start_flask():
-    """Run the Flask app."""
-    flask_app.run(host="0.0.0.0", port=5000)
+st.title("State Changer")
 
-# Streamlit app
-st.title("Streamlit with Raw Text Page")
+# Style the button to be large
+button_style = """
+    <style>
+    .stButton button {
+        height: 100px;
+        width: 100%;
+        font-size: 24px;
+    }
+    </style>
+"""
+st.markdown(button_style, unsafe_allow_html=True)
 
-if st.button("Press Me"):
-    # Update text file to "true"
-    with open(RAW_TEXT_FILE, "w") as file:
-        file.write("true")
-    st.success("Text updated to 'true'. It will revert to 'false' in 3 seconds.")
+if st.button("Open Gate"):
+    # Set state.txt to "true"
+    update_state_file("true")
+    st.write("State is now true")
+    # Wait for 3 seconds
     time.sleep(3)
-    # Revert to "false"
-    with open(RAW_TEXT_FILE, "w") as file:
-        file.write("false")
-
-st.write("The raw text file is accessible at [Raw Text Page](http://localhost:5000/rawtext).")
-
-# Start Flask in a separate thread
-Thread(target=start_flask, daemon=True).start()
+    # Set state.txt back to "false"
+    update_state_file("false")
+    st.write("State is now false")
